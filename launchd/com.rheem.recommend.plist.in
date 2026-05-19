@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rendered by `make install-agent` (@REPO@ / @PY@ are substituted). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.rheem.recommend</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PY@</string>
+    <string>@REPO@/recommend.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>@REPO@</string>
+
+  <!-- Hourly at :10, so it consumes the fresh forecast.parquet written by
+       the :00 forecast job. Advisory only -- never writes the heater. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>10</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>@REPO@/logs/recommend.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>@REPO@/logs/recommend.err.log</string>
+</dict>
+</plist>

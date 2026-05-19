@@ -1,0 +1,15 @@
+.venv/
+.venv-toto/
+# Credentials live in ~/.config/rheem/env, not the repo. This stays as a
+# guard against an accidental local .env.
+.env
+__pycache__/
+*.pyc
+rheem.jsonl
+collector.log
+logs/
+telemetry.parquet
+forecast.parquet
+recommendation.parquet
+# Per-user Claude Code permissions (machine-specific; not for the public repo)
+.claude/settings.local.json

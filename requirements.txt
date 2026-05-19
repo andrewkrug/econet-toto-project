@@ -1,0 +1,11 @@
+# Collector + Datadog layer -- install in .venv (Python 3.14 OK)
+pyeconet>=0.1.28
+pandas
+pyarrow
+datadog-api-client
+
+# Toto forecasting layer -- install in a SEPARATE Python 3.12 venv (.venv-toto);
+# scipy/torch have no 3.14 wheels. See README.
+#   python3.12 -m venv .venv-toto
+#   .venv-toto/bin/pip install pandas pyarrow torch \
+#     "toto-2 @ git+https://github.com/DataDog/toto.git#subdirectory=toto2"

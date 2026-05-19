@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rendered by `make install-agent` (@REPO@ / @PY@ are substituted). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.rheem.telemetry</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PY@</string>
+    <string>@REPO@/rheem.py</string>
+    <string>log</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>@REPO@</string>
+
+  <!-- Collector cadence the whole pipeline assumes: every 15 minutes. -->
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>@REPO@/logs/telemetry.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>@REPO@/logs/telemetry.err.log</string>
+</dict>
+</plist>

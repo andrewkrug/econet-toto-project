@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rendered by `make install-agent` (@REPO@ / @PYTOTO@ are substituted). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.rheem.forecast</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PYTOTO@</string>
+    <string>@REPO@/toto_forecast.py</string>
+    <string>tank_hot_water_availability</string>
+    <string>--horizon</string>
+    <string>96</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>@REPO@</string>
+
+  <!-- Hourly, on the hour. Toto re-forecasts 24h ahead from 15-min data;
+       a finer cadence would just reload the model for no new signal.
+       No-ops until >= 32 telemetry points (~8h) exist. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>@REPO@/logs/forecast.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>@REPO@/logs/forecast.err.log</string>
+</dict>
+</plist>
