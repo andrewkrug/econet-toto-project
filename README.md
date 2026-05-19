@@ -1,9 +1,47 @@
-# rheem-experiment
+# econet-toto-project
 
-Observe-only telemetry pipeline for a Rheem EcoNet heat-pump water heater
-(unit at `172.16.31.41`): collect every 15 min → store in Parquet → ship
-metrics to Datadog → forecast with Datadog's Toto model. **Nothing in the
-scheduled path ever writes to the heater.**
+An observe-only telemetry, forecasting, and energy-optimization pipeline for
+a **Rheem EcoNet heat-pump water heater (HPWH)** — collect every 15 min →
+store in Parquet → ship metrics to Datadog → forecast demand with Datadog's
+**Toto** time-series foundation model → recommend energy-saving setpoint
+changes. **Nothing in the scheduled path ever writes to the heater.**
+
+![Hot water status page](docs/hotwater.png)
+
+## Why this project exists
+
+A heat-pump water heater is one of the largest always-on loads in a home,
+and most of its energy goes to **standby reheating** — keeping ~80 gallons
+hot around the clock even during the many hours nobody draws hot water. The
+heater is also a black box: Rheem's EcoNet units are **cloud-tethered** (no
+local API — see below), so the only window into them is a phone app that
+shows a coarse "hot water available" gauge and a daily kWh number, with no
+history, no alerting, and no way to reason about *when* hot water is actually
+needed.
+
+This project turns that black box into an observable, forecastable system,
+with a concrete goal: **spend less energy on standby heat without ever
+running out of hot water.** Concretely it:
+
+- **Makes the heater observable.** A 15-minute collector pulls telemetry
+  (hot-water availability, setpoint, run state, real EcoNet kWh, tank and
+  compressor health, alerts) into Parquet and Datadog, with a color-coded
+  dashboard — so you can see behavior, trends, and problems over time
+  instead of a single live number.
+- **Forecasts demand.** Datadog's open-source **Toto 2.0** model predicts
+  hot-water availability/demand 24 h ahead from the collected history.
+- **Recommends savings.** `recommend.py` turns that forecast into an
+  advisory setpoint schedule — drop to an eco temperature during predicted
+  low-demand windows, recover before demand — and estimates the standby-loss
+  saving. It is **strictly advisory**; you apply changes yourself.
+- **Answers the everyday question.** A small `/hotwater` web page (shown
+  above) answers "can I shower?" / "can I fill a bath?" at a glance, with a
+  minutes-until-ready estimate when the answer is no.
+
+It also doubles as a worked example of instrumenting an opaque cloud device
+end-to-end: telemetry modeling, calibration of a vendor's fuzzy index into
+real units, foundation-model forecasting, and turning predictions into an
+actionable policy.
 
 ## Why it's cloud, not local
 
@@ -30,9 +68,21 @@ recommend.py ← telemetry.parquet + forecast.parquet ─┬→ recommendation.p
    (advisory setpoint schedule; never writes heater)  └→ Datadog rheem.reco.*
 ```
 
-`pyeconet` does not expose `get_energy_usage()` data for this unit (returns
-`None`), so "usage" here = the operational telemetry it *does* expose: hot-water
-availability, setpoint, run state, tank/compressor health, alerts.
+Telemetry covers hot-water availability, setpoint, run state, tank/compressor
+health, and alerts. Real energy use **is** available — `rheem.py` calls
+EcoNet's usage-report endpoint, so `rheem.energy_today_kwh` carries the same
+kWh the app shows (it is `None` only if that call is never made). Water-usage
+reporting is not supported on this particular unit.
+
+## Dashboard
+
+The Datadog dashboard (color-coded big numbers, Toto forecast section, and an
+advisory recommendation section):
+
+![Datadog dashboard](docs/dashboard.png)
+
+Live (public, read-only):
+<https://p.datadoghq.com/sb/ptw1l8uqp92273af-65cdb4b9fd0cc28a44f93d2ac060955d>
 
 ## Two Python environments (important)
 
@@ -200,3 +250,7 @@ with `datadog-agent status | grep -A4 rheem`.
   committed; the repo ships only `env.example`.
 - The unit currently reports **1 active alert**; `pyeconet` only gives the
   count — check the EcoNet app for detail.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
