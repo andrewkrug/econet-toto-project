@@ -35,7 +35,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-TANK_GALLONS = float(os.environ.get("RHEEM_TANK_GALLONS", "80"))
 # Same calibration as rheem.py: index 66 = full = USABLE_GALLONS.
 FULL_INDEX = float(os.environ.get("RHEEM_FULL_INDEX", "66"))
 USABLE_GALLONS = float(os.environ.get("RHEEM_USABLE_GALLONS", "80"))

@@ -23,7 +23,18 @@ import os
 import sys
 import time
 import urllib.request
+import warnings
 from pathlib import Path
+
+# gluonts (pulled in transitively by toto2) emits a UserWarning at import
+# time when neither orjson nor ujson is installed. The forecast job runs
+# hourly under launchd, so that one warning flooded forecast.err.log.
+# The stdlib-json fallback is fine for our use -- just don't log it.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Using `json`-module for json-handling\..*",
+    module=r"gluonts\.json",
+)
 
 import pandas as pd
 import torch

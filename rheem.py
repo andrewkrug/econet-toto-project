@@ -145,11 +145,6 @@ async def cmd_energy(api):
 
 PARQUET_PATH = Path(__file__).with_name("telemetry.parquet")
 
-# Physical tank size, used to extrapolate gallons of usable hot water from
-# the heater's 0-100 "hot water availability" index. Override for a
-# different unit:  RHEEM_TANK_GALLONS=50
-TANK_GALLONS = float(os.environ.get("RHEEM_TANK_GALLONS", "80"))
-
 # tank_hot_water_availability is a coarse quantized index (this unit only
 # reports ~0/33/66/100). In ENERGY_SAVING mode 66 is its normal "full and
 # ready" state -- the EcoNet app treats that as full -- so we calibrate
