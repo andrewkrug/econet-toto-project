@@ -6,6 +6,15 @@ store in Parquet → ship metrics to Datadog → forecast demand with Datadog's
 **Toto** time-series foundation model → recommend energy-saving setpoint
 changes. **Nothing in the scheduled path ever writes to the heater.**
 
+> **Datadog is not required.** It just happens to be the dashboarding tool
+> the author has access to, so it's the reference sink here. The core
+> pipeline — collection, Parquet storage, Toto forecasting, and the
+> advisory recommender — runs fully without it: if `DD_API_KEY` is unset
+> every metric/dashboard push is silently skipped and nothing else
+> changes. `telemetry.parquet`, the `/hotwater` page, `make forecast`, and
+> `make recommend` all work Datadog-free; swap in any other sink by reading
+> the same Parquet files.
+
 ![Hot water status page](docs/hotwater.png)
 
 ## Why this project exists
@@ -76,8 +85,9 @@ reporting is not supported on this particular unit.
 
 ## Dashboard
 
-The Datadog dashboard (color-coded big numbers, Toto forecast section, and an
-advisory recommendation section):
+Datadog is **optional** (see the note up top) — this is just the sink the
+author had on hand. The Datadog dashboard (color-coded big numbers, Toto
+forecast section, and an advisory recommendation section):
 
 ![Datadog dashboard](docs/dashboard.png)
 
