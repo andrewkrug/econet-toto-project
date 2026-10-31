@@ -1,5 +1,6 @@
 # Collector + Datadog layer -- install in .venv (Python 3.14 OK)
 pyeconet>=0.1.28
+certifi  # rheem.py pins SSL_CERT_FILE to its bundle: clearblade omits a TLS intermediate the macOS store lacks
 pandas
 pyarrow
 datadog-api-client

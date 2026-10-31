@@ -24,6 +24,21 @@ import os
 import sys
 from pathlib import Path
 
+# rheem.clearblade.com sits behind backends that intermittently omit the
+# DigiCert G5 intermediate from the TLS chain. The macOS system store
+# (/private/etc/ssl/cert.pem) lacks that intermediate, so verification fails
+# stochastically; certifi ships it. Point OpenSSL's default lookup at
+# certifi's bundle. This MUST run before pyeconet/aiohttp are imported:
+# aiohttp builds its default SSL contexts at import time.
+# ssl.create_default_context() honors SSL_CERT_FILE, and an explicitly-set
+# env var always wins over this fallback.
+try:
+    import certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+except ImportError:
+    pass  # no certifi: fall back to the system store and its flake rate
+
 from pyeconet import EcoNetApiInterface
 from pyeconet.equipment import EquipmentType
 from pyeconet.equipment.water_heater import WaterHeaterOperationMode
