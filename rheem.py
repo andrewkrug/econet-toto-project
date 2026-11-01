@@ -381,7 +381,12 @@ async def cmd_log(api):
     # over the full frame so it's consistent across restarts.
     row["energy_est_kwh_today"] = _energy_today_kwh(df)
     df.loc[df.index[-1], "energy_est_kwh_today"] = row["energy_est_kwh_today"]
-    df.to_parquet(PARQUET_PATH, index=False)
+    # Atomic read-modify-write: two schedulers (launchd + an external cron
+    # entry) both run `rheem.py log` against this file, so a plain
+    # to_parquet could interleave a torn/partial file if runs overlap.
+    tmp = PARQUET_PATH.with_suffix(".parquet.tmp")
+    df.to_parquet(tmp, index=False)
+    os.replace(tmp, PARQUET_PATH)
 
     try:
         dd_status = _send_datadog(row)

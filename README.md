@@ -258,7 +258,7 @@ with `datadog-agent status | grep -A4 rheem`.
   failure never loses a stored row.
 - Credentials are read from `~/.config/rheem/env` at runtime and are never
   committed; the repo ships only `env.example`.
-- The unit currently reports **1 active alert**; `pyeconet` only gives the
+- The unit currently reports **2 active alerts**; `pyeconet` only gives the
   count — check the EcoNet app for detail.
 
 ## License
