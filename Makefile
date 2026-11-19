@@ -54,7 +54,7 @@ $(BIN_TOTO):
 		$(PY312) -m venv $(VENV_TOTO); \
 	fi
 	$(BIN_TOTO) -m pip install -q --upgrade pip
-	$(BIN_TOTO) -m pip install -q pandas pyarrow torch \
+	$(BIN_TOTO) -m pip install -q pandas pyarrow torch orjson \
 		"toto-2 @ git+https://github.com/DataDog/toto.git#subdirectory=toto2"
 
 .PHONY: config
