@@ -106,7 +106,7 @@ their own venv, separate from the lightweight collector/recommender:
   available (it handles uv-managed Python; plain `python3.12 -m venv` can't run
   ensurepip on those), else falls back to stdlib `venv`. Installs:
   ```
-  pandas pyarrow torch
+  pandas pyarrow torch orjson   # orjson silences gluonts' stdlib-json import warning
   toto-2 @ git+https://github.com/DataDog/toto.git#subdirectory=toto2
   ```
 
