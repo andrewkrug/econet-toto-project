@@ -20,6 +20,7 @@ Credentials come from the environment or, if unset there, from
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import os
 import sys
 from pathlib import Path
@@ -372,6 +373,11 @@ async def cmd_log(api):
         "outdoor_temp_f": _outdoor_temp_f(),
     }
     df_new = pd.DataFrame([row])
+    # Two schedulers (launchd + an external cron entry) both run `rheem.py log`; hold an
+    # exclusive lock over the whole read-modify-write so overlapping runs neither lose a row
+    # nor rename each other's .tmp away (FileNotFoundError on os.replace, 2026-11-18).
+    lock = open(PARQUET_PATH.with_suffix(".parquet.lock"), "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
     if PARQUET_PATH.exists():
         df = pd.concat([pd.read_parquet(PARQUET_PATH), df_new],
                        ignore_index=True)
@@ -387,6 +393,7 @@ async def cmd_log(api):
     tmp = PARQUET_PATH.with_suffix(".parquet.tmp")
     df.to_parquet(tmp, index=False)
     os.replace(tmp, PARQUET_PATH)
+    lock.close()  # releases the flock
 
     try:
         dd_status = _send_datadog(row)

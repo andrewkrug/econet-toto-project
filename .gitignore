@@ -48,3 +48,4 @@ target/
 .DS_Store
 .claude/settings.local.json
 # --- end nightly-optimize baseline ---
+*.parquet.lock
