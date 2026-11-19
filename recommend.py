@@ -129,10 +129,9 @@ def _local_tz():
     return datetime.now().astimezone().tzinfo
 
 
-def load_forecast_demand(now: pd.Timestamp) -> pd.Series | None:
-    """If a fresh Toto forecast of availability exists, convert it to a
-    per-step demand series (positive drops) indexed by timestamp. Returns
-    None if absent, stale (>2h old start), or not an availability forecast."""
+def _fresh_availability_forecast(now: pd.Timestamp) -> pd.DataFrame | None:
+    """The Toto availability forecast sorted by time, or None if absent,
+    stale (>2h old start), or a forecast of some other column."""
     if not FORECAST.exists():
         return None
     fc = pd.read_parquet(FORECAST)
@@ -140,15 +139,34 @@ def load_forecast_demand(now: pd.Timestamp) -> pd.Series | None:
         return None  # forecast is for some other column; ignore for demand
     fc = fc.sort_values("timestamp")
     fc["ts"] = pd.to_datetime(fc["timestamp"], utc=True)
-    if (now - fc["ts"].iloc[0]) > pd.Timedelta(hours=2):
+    if fc.empty or (now - fc["ts"].iloc[0]) > pd.Timedelta(hours=2):
         return None  # stale; profile-only
+    return fc
+
+
+def load_forecast_demand(now: pd.Timestamp) -> pd.Series | None:
+    """If a fresh Toto forecast of availability exists, convert it to a
+    per-step demand series (positive drops) indexed by timestamp."""
+    fc = _fresh_availability_forecast(now)
+    if fc is None:
+        return None
     dem = (-fc["forecast"].diff()).clip(lower=0).fillna(0.0)
     dem.index = fc["ts"]
     return dem
 
 
+def load_forecast_availability(now: pd.Timestamp) -> pd.Series | None:
+    """Predicted availability (median forecast, 0-100) indexed by timestamp,
+    used to enforce --floor. None when there is no fresh forecast."""
+    fc = _fresh_availability_forecast(now)
+    if fc is None:
+        return None
+    return pd.Series(fc["forecast"].values, index=fc["ts"])
+
+
 def build_schedule(args, prof: pd.Series, fc_demand: pd.Series | None,
-                    now: pd.Timestamp) -> pd.DataFrame:
+                    now: pd.Timestamp,
+                    fc_avail: pd.Series | None = None) -> pd.DataFrame:
     n = int(round(args.horizon * 60 / STEP_MIN))
     idx = pd.date_range(now.ceil(f"{STEP_MIN}min"), periods=n,
                         freq=f"{STEP_MIN}min")
@@ -177,11 +195,22 @@ def build_schedule(args, prof: pd.Series, fc_demand: pd.Series | None,
     for j in dem_pos:
         need_comfort[max(0, j - lead):j] = True
 
+    # Floor: wherever the forecast predicts availability below --floor, stay
+    # at comfort (eco there would deepen the shortfall). Only enforceable
+    # where a fresh forecast covers the block; elsewhere the profile rules.
+    below_floor = np.zeros(n, dtype=bool)
+    if fc_avail is not None and not fc_avail.empty:
+        a = fc_avail.reindex(idx, method="nearest",
+                             tolerance=pd.Timedelta(minutes=STEP_MIN))
+        below_floor = (a < args.floor).fillna(False).values
+    need_comfort |= below_floor
+
     setpoint = np.where(need_comfort, args.comfort, args.eco)
     reason = np.where(
         is_demand, "predicted demand",
-        np.where(need_comfort, f"recovery lead-in ({args.recovery_hours:g}h)",
-                 "low demand -> eco"))
+        np.where(below_floor, f"predicted availability < {args.floor:g}% floor",
+                 np.where(need_comfort, f"recovery lead-in ({args.recovery_hours:g}h)",
+                          "low demand -> eco")))
 
     return pd.DataFrame({
         "timestamp": idx,
@@ -252,7 +281,8 @@ def main() -> None:
     if fc_demand is not None:
         conf = "medium" if conf in ("very low", "low") else conf
 
-    sched = build_schedule(args, prof, fc_demand, now)
+    sched = build_schedule(args, prof, fc_demand, now,
+                           load_forecast_availability(now))
     seg = collapse(sched)
 
     eco_blocks = int((sched["recommended_setpoint_f"] == args.eco).sum())
