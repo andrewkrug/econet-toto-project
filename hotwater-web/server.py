@@ -18,9 +18,12 @@ Env:
   HOTWATER_BATH_GALLONS    bath threshold, gal   (default 40)
   HOTWATER_STALE_MINUTES   mark data stale after this many min (default 40)
   HOTWATER_PORT            listen port           (default 8000)
+  HOTWATER_BIND            listen address        (default 127.0.0.1; the
+                           container sets 0.0.0.0 so nginx can reach it)
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 from datetime import datetime, timezone
@@ -32,6 +35,7 @@ SHOWER_GAL = float(os.environ.get("HOTWATER_SHOWER_GALLONS", "15"))
 BATH_GAL = float(os.environ.get("HOTWATER_BATH_GALLONS", "40"))
 STALE_MIN = float(os.environ.get("HOTWATER_STALE_MINUTES", "40"))
 PORT = int(os.environ.get("HOTWATER_PORT", "8000"))
+BIND = os.environ.get("HOTWATER_BIND", "127.0.0.1")
 # Calibration fallback (must match rheem.py): the availability index is
 # quantized and 66 is the unit's normal "full" step, so 66 -> USABLE_GAL.
 # Normally unused -- tank_gallons_available in rheem.jsonl is already
@@ -196,6 +200,11 @@ def eta_text(eta_min, ready: bool, rate) -> str:
     return f"ready in {when}{r}"
 
 
+def esc(v) -> str:
+    """HTML-escape a value that came from the cloud telemetry (never trust it as markup)."""
+    return html.escape(str(v), quote=True)
+
+
 def page() -> bytes:
     s = status()
     if not s["ok"]:
@@ -220,9 +229,9 @@ def page() -> bytes:
         age = "" if s["age_minutes"] is None else \
             f" ({s['age_minutes']:g} min ago)"
         meta = (f"<p class='meta'>{g:g} gal usable hot water "
-                f"&middot; setpoint {s.get('set_point_f')}&deg;F "
-                f"&middot; {s.get('mode')}<br>"
-                f"as of {s.get('as_of')}{age}{stale}</p>")
+                f"&middot; setpoint {esc(s.get('set_point_f'))}&deg;F "
+                f"&middot; {esc(s.get('mode'))}<br>"
+                f"as of {esc(s.get('as_of'))}{age}{stale}</p>")
 
     html = f"""<!doctype html>
 <html lang="en">
@@ -307,6 +316,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"hotwater: serving on :{PORT}, reading {JSONL} "
+    print(f"hotwater: serving on {BIND}:{PORT}, reading {JSONL} "
           f"(shower>={SHOWER_GAL}gal, bath>={BATH_GAL}gal)", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ThreadingHTTPServer((BIND, PORT), Handler).serve_forever()
