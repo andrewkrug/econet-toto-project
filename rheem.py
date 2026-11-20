@@ -185,8 +185,9 @@ def _num(x):
         return None
 
 
-# This unit reports no native kWh, so energy is *estimated* from run state
-# using typical 80-gal hybrid HPWH ratings (override per your spec plate):
+# Independent power *estimate* from run state, as a cross-check for the real
+# kWh the EcoNet usage report provides (energy_today_kwh above). Uses typical
+# 80-gal hybrid HPWH ratings (override per your spec plate):
 #   heat-pump compressor ~0.45 kW, resistive elements ~4.5 kW, idle 0.
 HP_KW = float(os.environ.get("RHEEM_HP_KW", "0.45"))
 ELEMENT_KW = float(os.environ.get("RHEEM_ELEMENT_KW", "4.5"))
