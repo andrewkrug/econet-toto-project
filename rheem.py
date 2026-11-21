@@ -439,13 +439,29 @@ async def cmd_away(api, state: str):
     print("Sent.")
 
 
+async def login_with_retry(email: str, password: str, attempts: int = 3):
+    """EcoNet's cloud (rheem.clearblade.com) drops connections and answers
+    5xx intermittently -- see the SSL_CERT_FILE note above; the 48h error
+    log shows ConnectionTimeoutError / GenericHTTPError(500) from
+    _authenticate crashing whole `log` runs and losing that cycle's
+    telemetry row. Retry transient auth failures with a short backoff;
+    the final failure re-raises so schedulers/Datadog still see it."""
+    for i in range(attempts):
+        try:
+            return await EcoNetApiInterface.login(email, password)
+        except Exception:
+            if i == attempts - 1:
+                raise
+            await asyncio.sleep(5.0 * (i + 1))
+
+
 async def main() -> None:
     if len(sys.argv) < 2:
         print(__doc__)
         return
     cmd, *args = sys.argv[1:]
     email, password = load_env()
-    api = await EcoNetApiInterface.login(email, password)
+    api = await login_with_retry(email, password)
     try:
         if cmd == "status":
             await cmd_status(api)
