@@ -41,6 +41,7 @@ except ImportError:
     pass  # no certifi: fall back to the system store and its flake rate
 
 from pyeconet import EcoNetApiInterface
+from pyeconet.errors import GenericHTTPError
 from pyeconet.equipment import EquipmentType
 from pyeconet.equipment.water_heater import WaterHeaterOperationMode
 
@@ -445,10 +446,20 @@ async def login_with_retry(email: str, password: str, attempts: int = 3):
     log shows ConnectionTimeoutError / GenericHTTPError(500) from
     _authenticate crashing whole `log` runs and losing that cycle's
     telemetry row. Retry transient auth failures with a short backoff;
-    the final failure re-raises so schedulers/Datadog still see it."""
+    the final failure re-raises so schedulers/Datadog still see it.
+    HTTP 429 is different: the cloud is rate-limiting us (two schedulers
+    hit auth every 15 min), so 5s/10s retries land inside the limit
+    window and fail again -- telemetry.err.log shows GenericHTTPError: 429
+    surfacing as a crashed run after the fast retries. Wait out a typical
+    60s window instead."""
     for i in range(attempts):
         try:
             return await EcoNetApiInterface.login(email, password)
+        except GenericHTTPError as e:
+            status = e.args[0] if e.args else None
+            if i == attempts - 1 or status != 429:
+                raise
+            await asyncio.sleep(60.0)
         except Exception:
             if i == attempts - 1:
                 raise
