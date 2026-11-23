@@ -457,9 +457,11 @@ async def login_with_retry(email: str, password: str, attempts: int = 3):
             return await EcoNetApiInterface.login(email, password)
         except GenericHTTPError as e:
             status = e.args[0] if e.args else None
-            if i == attempts - 1 or status != 429:
+            if i == attempts - 1:
                 raise
-            await asyncio.sleep(60.0)
+            # 429: wait out the rate-limit window; other 5xx (the log
+            # shows GenericHTTPError: 500 from _authenticate): short backoff.
+            await asyncio.sleep(60.0 if status == 429 else 5.0 * (i + 1))
         except Exception:
             if i == attempts - 1:
                 raise
