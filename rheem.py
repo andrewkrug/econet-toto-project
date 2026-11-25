@@ -106,6 +106,34 @@ async def get_heater(api: EcoNetApiInterface):
     return heaters[0]
 
 
+async def get_heater_with_retry(api: EcoNetApiInterface, attempts: int = 3):
+    """get_heater hits _get_location, which the 48h error log shows failing
+    transiently (GenericHTTPError: 500 from pyeconet/api.py:247, read
+    timeouts mid-request) -- same flaky ClearBlade backend as login. An
+    unhandled failure here crashed whole `log` runs and lost that cycle's
+    telemetry row. Same retry policy as login_with_retry; the final
+    failure re-raises so schedulers/Datadog still see it."""
+    last_err = None
+    for i in range(attempts):
+        try:
+            return await get_heater(api)
+        except SystemExit:
+            raise  # "no heater on account" is not transient
+        except GenericHTTPError as e:
+            last_err = e
+            status = e.args[0] if e.args else None
+            if i == attempts - 1:
+                raise
+            # 429: wait out the rate-limit window; other 5xx: short backoff.
+            await asyncio.sleep(60.0 if status == 429 else 5.0 * (i + 1))
+        except Exception as e:
+            last_err = e
+            if i == attempts - 1:
+                raise
+            await asyncio.sleep(5.0 * (i + 1))
+    raise last_err
+
+
 def dump(wh) -> None:
     print(f"  Device:        {wh.device_name}  (id={wh.device_id})")
     print(f"  Serial:        {wh.serial_number}")
@@ -328,7 +356,7 @@ async def cmd_log(api):
     import pandas as pd
     from datetime import datetime, timezone
 
-    wh = await get_heater(api)
+    wh = await get_heater_with_retry(api)
 
     # Pull the usage report (same data the EcoNet app shows). This is what
     # populates wh.todays_energy_usage / energy_type / water_usage -- they
